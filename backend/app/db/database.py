@@ -1,35 +1,46 @@
-"""Database connection and session management.
+"""SQLite database engine, session management, and table initialization."""
 
-Placeholder for future DB integration (e.g., PostgreSQL, MongoDB).
-Use for storing analysis results, audit logs, etc.
-"""
+from __future__ import annotations
 
-from typing import AsyncGenerator, Any
+from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.logging import get_logger
+from app.db.models import Base
 
 logger = get_logger("database")
 
-
-async def get_db() -> AsyncGenerator[Any, None]:
-    """Dependency for database session. Placeholder for future use."""
-    # Placeholder: real implementation would yield a session
-    # async with AsyncSessionLocal() as session:
-    #     yield session
-    yield None
+# SQLite for development
+SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
 
 
-class DatabaseManager:
-    """Placeholder database manager for future use."""
+def _create_engine() -> Engine:
+    # check_same_thread=False is required for SQLite when using FastAPI with threads
+    return create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        pool_pre_ping=True,
+    )
 
-    def __init__(self, connection_string: str | None = None) -> None:
-        self._connection_string = connection_string
-        self._engine: Any = None
 
-    async def connect(self) -> None:
-        """Establish database connection. Placeholder."""
-        logger.info("Database connect placeholder")
+engine: Engine = _create_engine()
 
-    async def disconnect(self) -> None:
-        """Close database connection. Placeholder."""
-        logger.info("Database disconnect placeholder")
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def init_db() -> None:
+    """Create tables if they do not exist (dev convenience)."""
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables initialized", extra={"db_url": SQLALCHEMY_DATABASE_URL})
+
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency that yields a SQLAlchemy session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

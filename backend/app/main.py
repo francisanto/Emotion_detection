@@ -11,6 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.routes import api_router, root_router
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
+from app.db.database import init_db
 
 settings = get_settings()
 setup_logging()
@@ -21,6 +22,7 @@ logger = get_logger("main")
 async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown."""
     logger.info("Application starting up")
+    init_db()
     yield
     logger.info("Application shutting down")
 
