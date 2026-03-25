@@ -19,8 +19,8 @@ ALLOWED_EXTENSIONS = (".wav", ".mp3", ".ogg", ".flac", ".m4a")
 
 @router.post("/analyze", response_model=APIResponse[VoiceAnalyzeResponse])
 async def analyze_voice(
-    audio: UploadFile = File(..., description="Audio file (wav, mp3, etc.)"),
     service: VoiceServiceDep,
+    audio: UploadFile = File(..., description="Audio file (wav, mp3, etc.)"),
 ) -> APIResponse[VoiceAnalyzeResponse]:
     """
     Analyze voice for stress level, emotional intensity, and confidence.

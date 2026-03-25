@@ -18,35 +18,38 @@ class TextService:
         self._settings = get_settings()
 
     @staticmethod
-    def _stress_label_to_score(label: str) -> float:
+    def _stress_from_emotion(emotion: str) -> float:
         """
-        Map a categorical stress level label to a numeric score in [0, 1].
+        Derive a numeric stress score from the dominant emotion.
         """
-        if not label:
-            return 0.5
+        emo = emotion.strip().lower()
+        if emo == "joy":
+            return 0.2
+        if emo == "neutral":
+            return 0.4
+        if emo == "sadness":
+            return 0.6
+        if emo == "fear":
+            return 0.8
+        if emo == "anger":
+            return 0.85
+        return 0.5
 
-        normalized = label.strip().lower()
-        mapping = {
-            "low": 0.2,
-            "medium": 0.5,
-            "med": 0.5,
-            "high": 0.8,
-            "very_high": 0.9,
-            "very high": 0.9,
-        }
-
-        if normalized in mapping:
-            return mapping[normalized]
-
-        # Allow numeric labels like "0.7" or "70%"
-        try:
-            if normalized.endswith("%"):
-                value = float(normalized.rstrip("%")) / 100.0
-            else:
-                value = float(normalized)
-            return max(0.0, min(1.0, value))
-        except ValueError:
-            return 0.5
+    @staticmethod
+    def _social_intent_from_emotion(emotion: str) -> str:
+        """
+        Heuristic mapping from emotion to social intent category.
+        """
+        emo = emotion.strip().lower()
+        if emo == "joy":
+            return "positive_social"
+        if emo == "sadness":
+            return "support_seeking"
+        if emo == "anger":
+            return "confrontational"
+        if emo == "fear":
+            return "reassurance_seeking"
+        return "informational"
 
     async def analyze(self, text: str) -> TextAnalyzeResponse:
         """
@@ -64,8 +67,7 @@ class TextService:
         raw_prediction: Dict[str, Any] = self._model.predict(text)
 
         emotion = str(raw_prediction.get("emotion", "neutral"))
-        stress_label = str(raw_prediction.get("stress_level", "medium"))
-        social_intent = str(raw_prediction.get("social_intent", "informational"))
+        social_intent = self._social_intent_from_emotion(emotion)
 
         confidence_raw = raw_prediction.get("confidence", 0.85)
         try:
@@ -74,7 +76,7 @@ class TextService:
             confidence = 0.85
         confidence = max(0.0, min(1.0, confidence))
 
-        stress_score = self._stress_label_to_score(stress_label)
+        stress_score = self._stress_from_emotion(emotion)
 
         result = TextAnalyzeResponse(
             emotion=emotion,

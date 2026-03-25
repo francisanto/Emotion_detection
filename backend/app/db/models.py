@@ -88,6 +88,13 @@ class Conversation(Base):
         order_by="DailyRelationshipMetrics.date",
     )
 
+    relationship_stage: Mapped["RelationshipStage"] = relationship(
+        back_populates="conversation",
+        cascade="all, delete",
+        passive_deletes=True,
+        uselist=False,
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -137,4 +144,25 @@ class DailyRelationshipMetrics(Base):
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(back_populates="daily_metrics")
+
+
+class RelationshipStage(Base):
+    __tablename__ = "relationship_stages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    stage: Mapped[str] = mapped_column(String(32), nullable=False, default="stranger")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=func.now(),
+        onupdate=func.now(),
+    )
+
+    conversation: Mapped["Conversation"] = relationship(back_populates="relationship_stage")
 

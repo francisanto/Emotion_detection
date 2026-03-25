@@ -1,186 +1,147 @@
-"""Text ML model for emotion and social intent detection using scikit-learn."""
+"""Emotion model using HuggingFace transformers."""
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
-import joblib
+from transformers import pipeline
 
 from app.core.logging import get_logger
 from app.utils.preprocessing import preprocess_text
 
-logger = get_logger("text_model")
+logger = get_logger("emotion_model")
 
-DEFAULT_TEXT_MODEL_PATH = "models/text_model.joblib"
+MODEL_NAME = "j-hartmann/emotion-english-distilroberta-base"
+
+# Normalized emotion labels expected by the system
+NORMALIZED_EMOTIONS = {"joy", "sadness", "anger", "fear", "neutral"}
 
 
-class TextModel:
+class EmotionModel:
     """
-    Text model for emotion and social intent detection.
+    Wrapper around a HuggingFace transformers pipeline for emotion detection.
 
-    The model is expected to be a scikit-learn Pipeline persisted with joblib at
-    ``models/text_model.joblib`` (or a custom path). The typical pipeline is:
+    Uses the `j-hartmann/emotion-english-distilroberta-base` model and exposes:
 
-        [text preprocessing] -> TfidfVectorizer -> classifier
-
-    The loaded object should expose a ``predict`` method. By default we assume that
-    ``predict([text])`` returns either:
-
-    - A dict with keys: ``emotion``, ``stress_level``, ``social_intent``,
-      and optional ``confidence``; or
-    - A sequence of three labels: ``(emotion, stress_level, social_intent)``.
-
-    If the model file is missing or prediction fails, the class falls back to a
-    lightweight heuristic mock predictor.
+      - load_model()
+      - predict(text: str) -> {"emotion": str, "confidence": float}
+      - predict_batch(texts: List[str]) -> List[dict]
     """
 
-    def __init__(self, model_path: str | None = None) -> None:
-        """
-        Initialize text model.
-
-        Args:
-            model_path: Path to a joblib-saved scikit-learn pipeline. If None,
-                defaults to ``models/text_model.joblib``.
-        """
-        self._model_path = model_path or DEFAULT_TEXT_MODEL_PATH
+    def __init__(self) -> None:
         self._pipeline: Any | None = None
         self.load_model()
 
     def load_model(self) -> None:
-        """
-        Load the scikit-learn pipeline from disk using joblib.
-
-        If the file does not exist or loading fails, the model falls back to
-        mock predictions.
-        """
-        path = Path(self._model_path)
-        if not path.is_file():
-            logger.warning(
-                "Text model file not found, using mock predictions",
-                extra={"model_path": str(path)},
-            )
-            self._pipeline = None
+        """Load the transformers pipeline once."""
+        if self._pipeline is not None:
             return
 
         try:
-            self._pipeline = joblib.load(path)
-            logger.info(
-                "Text model loaded successfully",
-                extra={"model_path": str(path)},
+            self._pipeline = pipeline(
+                "text-classification",
+                model=MODEL_NAME,
+                top_k=None,
             )
+            logger.info("HuggingFace emotion model loaded", extra={"model_name": MODEL_NAME})
         except Exception as exc:  # pragma: no cover - defensive
-            logger.exception(
-                "Failed to load text model, using mock predictions",
-                extra={"model_path": str(path), "error": str(exc)},
-            )
+            logger.exception("Failed to load emotion model, falling back to heuristic", extra={"error": str(exc)})
             self._pipeline = None
 
-    def _mock_predict(self, text: str) -> Dict[str, Any]:
-        """
-        Fallback heuristic prediction used when a real model is not available.
-        """
+    @staticmethod
+    def _normalize_emotion(label: str) -> str:
+        """Map model label to one of the normalized emotion categories."""
+        base = label.lower().strip()
+
+        if any(k in base for k in ("joy", "happy", "happiness", "positive")):
+            return "joy"
+        if any(k in base for k in ("sad", "sadness", "sorrow", "depressed")):
+            return "sadness"
+        if any(k in base for k in ("anger", "angry", "annoy", "rage")):
+            return "anger"
+        if any(k in base for k in ("fear", "anxious", "anxiety", "worry")):
+            return "fear"
+
+        return "neutral"
+
+    def _heuristic_predict(self, text: str) -> Dict[str, Any]:
+        """Fallback heuristic prediction if transformers pipeline is unavailable."""
         cleaned = preprocess_text(text)
         lower = cleaned.lower()
 
-        emotion = "neutral"
-        social_intent = "informational"
-        stress_level = "medium"
-        confidence = 0.7
-
         if any(w in lower for w in ("happy", "glad", "joy", "awesome", "great")):
-            emotion = "happy"
-            social_intent = "positive_social"
-            stress_level = "low"
-            confidence = 0.8
-        elif any(w in lower for w in ("sad", "unhappy", "depressed", "down")):
-            emotion = "sad"
-            social_intent = "withdrawn"
-            stress_level = "medium"
-            confidence = 0.8
-        elif any(w in lower for w in ("angry", "mad", "furious", "annoyed")):
-            emotion = "angry"
-            social_intent = "confrontational"
-            stress_level = "high"
-            confidence = 0.85
-        elif "help" in lower or "support" in lower:
-            social_intent = "help_seeking"
-            stress_level = "medium"
-            confidence = 0.8
+            return {"emotion": "joy", "confidence": 0.8}
+        if any(w in lower for w in ("sad", "unhappy", "depressed", "down")):
+            return {"emotion": "sadness", "confidence": 0.8}
+        if any(w in lower for w in ("angry", "mad", "furious", "annoyed")):
+            return {"emotion": "anger", "confidence": 0.8}
+        if any(w in lower for w in ("scared", "afraid", "worried", "anxious")):
+            return {"emotion": "fear", "confidence": 0.8}
 
-        return {
-            "emotion": emotion,
-            "stress_level": stress_level,
-            "social_intent": social_intent,
-            "confidence": float(confidence),
-        }
+        return {"emotion": "neutral", "confidence": 0.7}
 
-    def _predict_with_pipeline(self, text: str) -> Dict[str, Any]:
-        """
-        Run prediction using the loaded scikit-learn pipeline.
+    def _predict_single(self, text: str) -> Dict[str, Any]:
+        if not text:
+            return {"emotion": "neutral", "confidence": 0.0}
 
-        This method is deliberately tolerant of different shapes of model output.
-        """
-        assert self._pipeline is not None  # for type-checkers
+        if self._pipeline is None:
+            return self._heuristic_predict(text)
 
         try:
-            raw = self._pipeline.predict([text])
+            outputs = self._pipeline(text)
         except Exception as exc:  # pragma: no cover - defensive
-            logger.exception(
-                "Text model pipeline prediction failed, using mock predictions",
-                extra={"error": str(exc)},
-            )
-            return self._mock_predict(text)
+            logger.exception("Emotion pipeline prediction failed; using heuristic", extra={"error": str(exc)})
+            return self._heuristic_predict(text)
 
-        # Handle various common output formats
-        pred = raw[0]
-        result: Dict[str, Any]
-
-        if isinstance(pred, dict):
-            result = dict(pred)  # shallow copy
-        elif isinstance(pred, (list, tuple)) and len(pred) >= 3:
-            emotion, stress_level, social_intent = pred[:3]
-            result = {
-                "emotion": str(emotion),
-                "stress_level": str(stress_level),
-                "social_intent": str(social_intent),
-            }
+        # The pipeline with top_k=None returns a list of lists of dicts
+        if isinstance(outputs, list) and outputs and isinstance(outputs[0], list):
+            candidates = outputs[0]
         else:
-            # Single label model – treat as emotion-only
-            result = {
-                "emotion": str(pred),
-                "stress_level": "medium",
-                "social_intent": "informational",
-            }
+            # top-1 only
+            candidates = [outputs[0]] if isinstance(outputs, list) else [outputs]
 
-        # Attach a default confidence if not provided by the model
-        confidence = result.get("confidence")
-        try:
-            confidence_val = float(confidence) if confidence is not None else 0.85
-        except (TypeError, ValueError):
-            confidence_val = 0.85
-        result["confidence"] = confidence_val
+        best = max(candidates, key=lambda c: float(c.get("score", 0.0)))
+        emotion = self._normalize_emotion(str(best.get("label", "neutral")))
+        confidence = float(best.get("score", 0.0))
 
-        return result
+        return {"emotion": emotion, "confidence": confidence}
 
     def predict(self, text: str) -> Dict[str, Any]:
         """
-        Predict emotion, stress level, and social intent for a given text.
-
-        Args:
-            text: Raw input text.
+        Predict the dominant emotion for a single text.
 
         Returns:
-            dict with keys:
-                - ``emotion`` (str)
-                - ``stress_level`` (str)
-                - ``social_intent`` (str)
-                - ``confidence`` (float in [0, 1] as best-effort)
+            {"emotion": <joy|sadness|anger|fear|neutral>, "confidence": float}
         """
-        if not text:
-            return self._mock_predict("")
+        return self._predict_single(text)
+
+    def predict_batch(self, texts: List[str]) -> List[Dict[str, Any]]:
+        """
+        Batch prediction for a list of texts.
+        """
+        if not texts:
+            return []
 
         if self._pipeline is None:
-            return self._mock_predict(text)
+            return [self._heuristic_predict(t) for t in texts]
 
-        return self._predict_with_pipeline(text)
+        try:
+            outputs = self._pipeline(texts)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.exception("Emotion pipeline batch prediction failed; using heuristic", extra={"error": str(exc)})
+            return [self._heuristic_predict(t) for t in texts]
+
+        results: List[Dict[str, Any]] = []
+        for i, text in enumerate(texts):
+            out = outputs[i]
+            if isinstance(out, list):
+                candidates = out
+            else:
+                candidates = [out]
+            best = max(candidates, key=lambda c: float(c.get("score", 0.0)))
+            emotion = self._normalize_emotion(str(best.get("label", "neutral")))
+            confidence = float(best.get("score", 0.0))
+            results.append({"emotion": emotion, "confidence": confidence})
+
+        return results
+

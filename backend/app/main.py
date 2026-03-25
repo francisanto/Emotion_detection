@@ -1,17 +1,22 @@
 """FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
-from typing import Any
+from datetime import date, datetime, timezone
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.orm import Session
 
 from app.api.routes import api_router, root_router
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
-from app.db.database import init_db
+from app.db.database import get_db, init_db
+from app.db.models import Conversation, User
+from app.services.conversation_service import ConversationService
 
 settings = get_settings()
 setup_logging()
@@ -114,6 +119,108 @@ async def root() -> dict[str, Any]:
         },
         "metadata": {},
     }
+
+
+class TestChatMessage(BaseModel):
+    """Incoming message for the /test-chat endpoint."""
+
+    sender: str = Field(..., min_length=1)
+    text: str = Field(..., min_length=1)
+    timestamp: Optional[datetime] = Field(default=None)
+
+
+class TestChatRequest(BaseModel):
+    """Request body for /test-chat."""
+
+    messages: List[TestChatMessage]
+
+
+def _get_or_create_user(db: Session, name: str) -> User:
+    """Get or create a user by name (used for test endpoint only)."""
+    normalized = (name or "").strip() or "Unknown"
+    user = db.query(User).filter(User.name == normalized).one_or_none()
+    if user is None:
+        user = User(name=normalized)
+        db.add(user)
+        db.flush()
+    return user
+
+
+@app.post("/test-chat")
+async def test_chat(payload: TestChatRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Test endpoint to ingest raw chat messages, predict emotions, and compute daily relationship metrics.
+
+    Input:
+      { "messages": [ { "sender": "...", "text": "...", "timestamp": optional } ] }
+    """
+    if not payload.messages:
+        return {
+            "success": False,
+            "data": None,
+            "metadata": {"error": "messages must not be empty"},
+        }
+
+    unique_senders: List[str] = []
+    for m in payload.messages:
+        s = (m.sender or "").strip()
+        if s and s not in unique_senders:
+            unique_senders.append(s)
+
+    # Create a conversation automatically from the first two distinct senders.
+    # If only one sender exists, person_a_id == person_b_id.
+    sender_a = unique_senders[0] if unique_senders else "Unknown"
+    sender_b = unique_senders[1] if len(unique_senders) > 1 else sender_a
+
+    user_a = _get_or_create_user(db, sender_a)
+    user_b = _get_or_create_user(db, sender_b)
+
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.person_a_id == user_a.id, Conversation.person_b_id == user_b.id)
+        .one_or_none()
+    )
+    if conversation is None:
+        conversation = Conversation(person_a_id=user_a.id, person_b_id=user_b.id)
+        db.add(conversation)
+        db.flush()
+
+    messages_payload: List[Dict[str, Any]] = [
+        {
+            "sender": m.sender,
+            "text": m.text,
+            "timestamp": m.timestamp,
+        }
+        for m in payload.messages
+    ]
+
+    chat_summary = ConversationService(db).process_chat(
+        conversation_id=conversation.id,
+        messages=messages_payload,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "conversation_id": conversation.id,
+            "chat_summary": chat_summary,
+            "relationship_metrics": chat_summary.get("relationship_metrics"),
+            "relationship_stage": chat_summary.get("relationship_stage"),
+        },
+        "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
+    }
+
+
+@app.post("/analyze-chat")
+async def analyze_chat(payload: TestChatRequest, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Analyze chat messages and return relationship stage.
+
+    Input JSON:
+      { "messages": [ { "sender": "...", "text": "...", "timestamp": optional } ] }
+    """
+    # Reuse /test-chat flow
+    return await test_chat(payload=payload, db=db)
 
 
 if __name__ == "__main__":

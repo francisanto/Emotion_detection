@@ -4,22 +4,23 @@ from typing import Optional
 
 from app.core.config import get_settings
 from app.core.logging import get_logger
-from app.models.text_model import TextModel
+from app.models.text_model import EmotionModel
 from app.models.voice_model import VoiceModel
 
 logger = get_logger("model_loader")
 
-_text_model_instance: Optional[TextModel] = None
+_text_model_instance: Optional[EmotionModel] = None
 _voice_model_instance: Optional[VoiceModel] = None
 
 
-def get_text_model() -> TextModel:
-    """Get or create text model singleton."""
+def get_text_model() -> EmotionModel:
+    """Get or create emotion model singleton."""
     global _text_model_instance
     if _text_model_instance is None:
-        settings = get_settings()
-        _text_model_instance = TextModel(model_path=settings.text_model_path)
-        logger.info("Text model loaded", extra={"model_path": settings.text_model_path})
+        # settings currently unused but kept for future configurability
+        _ = get_settings()
+        _text_model_instance = EmotionModel()
+        logger.info("Emotion model singleton initialized")
     return _text_model_instance
 
 
