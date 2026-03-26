@@ -20,4 +20,8 @@ env.bak/
 .vscode/
 
 *.sqlite3
+*.db
+*.db-shm
+*.db-wal
+backend/app.db
 

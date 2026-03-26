@@ -14,3 +14,4 @@ torch>=2.1.0
 pytesseract>=0.3.10
 opencv-python>=4.9.0
 Pillow>=10.0.0
+kagglehub>=0.3.6,<1.0

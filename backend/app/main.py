@@ -15,7 +15,7 @@ from app.api.routes import api_router, root_router
 from app.core.config import get_settings
 from app.core.logging import get_logger, setup_logging
 from app.db.database import get_db, init_db
-from app.db.models import Conversation, User
+from app.db.models import Conversation, DailyRelationshipMetrics, RelationshipStage, User
 from app.services.conversation_service import ConversationService
 
 settings = get_settings()
@@ -221,6 +221,56 @@ async def analyze_chat(payload: TestChatRequest, db: Session = Depends(get_db)) 
     """
     # Reuse /test-chat flow
     return await test_chat(payload=payload, db=db)
+
+
+@app.get("/conversations/{conversation_id}/relationship-summary")
+async def get_relationship_summary(conversation_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Return the last 7 days of relationship metrics and current stage.
+    """
+    conversation = db.get(Conversation, conversation_id)
+    if conversation is None:
+        return {
+            "success": False,
+            "data": None,
+            "metadata": {"error": f"Conversation {conversation_id} not found"},
+        }
+
+    metrics_rows = (
+        db.query(DailyRelationshipMetrics)
+        .filter(DailyRelationshipMetrics.conversation_id == conversation_id)
+        .order_by(DailyRelationshipMetrics.date.desc())
+        .limit(7)
+        .all()
+    )
+
+    stage_row = (
+        db.query(RelationshipStage)
+        .filter(RelationshipStage.conversation_id == conversation_id)
+        .one_or_none()
+    )
+
+    metrics_data = [
+        {
+            "date": m.date.isoformat(),
+            "positive_score": m.positive_score,
+            "negative_score": m.negative_score,
+            "affection_score": m.affection_score,
+            "message_count": m.message_count,
+        }
+        for m in metrics_rows
+    ]
+
+    return {
+        "success": True,
+        "data": {
+            "conversation_id": conversation_id,
+            "relationship_stage": stage_row.stage if stage_row else "stranger",
+            "stage_updated_at": stage_row.updated_at.isoformat() if stage_row and stage_row.updated_at else None,
+            "metrics_last_7_days": metrics_data,
+        },
+        "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
+    }
 
 
 if __name__ == "__main__":
