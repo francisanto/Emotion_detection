@@ -1,6 +1,19 @@
-# Multimodal Conversational Emotion and Social Intent Detection
+<h1 align="center">Multimodal Conversational Emotion and Social Intent Detection</h1>
 
-Multimodal conversational intelligence system using NLP and speech analysis to detect emotion, stress, and social intent from real-world conversations.
+<p align="center">
+	AI-powered conversation understanding using <strong>BERT + Speech Features + Multimodal Fusion</strong>
+</p>
+
+<p align="center">
+	<img src="https://img.shields.io/badge/Text-BERT-111827" alt="BERT" />
+	<img src="https://img.shields.io/badge/Voice-MFCC%20%7C%20Pitch%20%7C%20Energy-6D28D9" alt="Voice Features" />
+	<img src="https://img.shields.io/badge/Fusion-Multimodal-0EA5E9" alt="Fusion" />
+	<img src="https://img.shields.io/badge/Database-SQLite-003B57" alt="SQLite" />
+</p>
+
+<p align="center">
+	Detect emotion, stress, and social intent from chat text, voice clips, and chat screenshots with history-aware relationship analytics.
+</p>
 
 ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
@@ -10,6 +23,7 @@ Multimodal conversational intelligence system using NLP and speech analysis to d
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
 ![Transformers](https://img.shields.io/badge/HuggingFace_Transformers-FFBF00?logo=huggingface&logoColor=black)
+![BERT](https://img.shields.io/badge/BERT-Text%20Model-111827)
 
 ## Team
 - Adithyan C P
