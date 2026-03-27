@@ -2,21 +2,6 @@
 
 Multimodal conversational intelligence system using NLP and speech analysis to detect emotion, stress, and social intent from real-world conversations.
 
-## Table of Contents
-- [Team](#team)
-- [Abstract](#abstract)
-- [Why This Project](#why-this-project)
-- [Core Features](#core-features)
-- [Model and AI Stack](#model-and-ai-stack)
-- [Tech Stack (with icons)](#tech-stack-with-icons)
-- [Functional Workflow](#functional-workflow)
-- [API Overview](#api-overview)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Results Summary](#results-summary)
-- [Future Improvements](#future-improvements)
-- [References](#references)
-
 ![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
@@ -72,7 +57,7 @@ The text pipeline uses **BERT** as the core NLP model, while speech is analyzed 
 | Layer | Tools |
 |---|---|
 | Frontend | ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?logo=tailwindcss&logoColor=white) |
-| Backend | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white) |
+| Backend | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white) ![BERT](https://img.shields.io/badge/BERT-Text%20Model-111827) |
 | ML / Signal | ![Transformers](https://img.shields.io/badge/Transformers-FFBF00?logo=huggingface&logoColor=black) ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Librosa](https://img.shields.io/badge/Librosa-A400FF?logo=python&logoColor=white) |
 | OCR / Imaging | ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white) ![Tesseract](https://img.shields.io/badge/Tesseract-OCR-2F7DB8) ![Pillow](https://img.shields.io/badge/Pillow-3776AB?logo=python&logoColor=white) |
 | Database | ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) |
