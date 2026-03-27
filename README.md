@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-	<img src="https://img.shields.io/badge/Text-BERT-111827" alt="BERT" />
+	<img src="https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00" alt="BERT" />
 	<img src="https://img.shields.io/badge/Voice-MFCC%20%7C%20Pitch%20%7C%20Energy-6D28D9" alt="Voice Features" />
 	<img src="https://img.shields.io/badge/Fusion-Multimodal-0EA5E9" alt="Fusion" />
 	<img src="https://img.shields.io/badge/Database-SQLite-003B57" alt="SQLite" />
@@ -23,7 +23,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
 ![Transformers](https://img.shields.io/badge/HuggingFace_Transformers-FFBF00?logo=huggingface&logoColor=black)
-![BERT](https://img.shields.io/badge/BERT-Text%20Model-111827)
+![BERT](https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00)
 
 ## Team
 - Adithyan C P
@@ -71,7 +71,7 @@ The text pipeline uses **BERT** as the core NLP model, while speech is analyzed 
 | Layer | Tools |
 |---|---|
 | Frontend | ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?logo=tailwindcss&logoColor=white) |
-| Backend | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white) ![BERT](https://img.shields.io/badge/BERT-Text%20Model-111827) |
+| Backend | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white) ![BERT](https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00) |
 | ML / Signal | ![Transformers](https://img.shields.io/badge/Transformers-FFBF00?logo=huggingface&logoColor=black) ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Librosa](https://img.shields.io/badge/Librosa-A400FF?logo=python&logoColor=white) |
 | OCR / Imaging | ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white) ![Tesseract](https://img.shields.io/badge/Tesseract-OCR-2F7DB8) ![Pillow](https://img.shields.io/badge/Pillow-3776AB?logo=python&logoColor=white) |
 | Database | ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) |
