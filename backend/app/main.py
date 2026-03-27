@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, File, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy.orm import Session
@@ -17,6 +18,7 @@ from app.core.logging import get_logger, setup_logging
 from app.db.database import get_db, init_db
 from app.db.models import Conversation, DailyRelationshipMetrics, RelationshipStage, User
 from app.services.conversation_service import ConversationService
+from app.services.ocr_service import extract_chat_text
 
 settings = get_settings()
 setup_logging()
@@ -38,6 +40,23 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
+)
+
+# Allow frontend dev servers to call this API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:8081",
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -221,6 +240,90 @@ async def analyze_chat(payload: TestChatRequest, db: Session = Depends(get_db)) 
     """
     # Reuse /test-chat flow
     return await test_chat(payload=payload, db=db)
+
+
+@app.post("/analyze-chat-image")
+async def analyze_chat_image(
+    image: UploadFile = File(..., description="Chat screenshot image"),
+    sender_a: str | None = None,
+    sender_b: str | None = None,
+    db: Session = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Analyze a chat screenshot:
+      image -> OCR -> structured messages -> emotion/relationship pipeline.
+    """
+    content = await image.read()
+    if not content:
+        return {
+            "success": False,
+            "data": None,
+            "metadata": {"error": "Empty image file"},
+        }
+
+    import tempfile
+    from pathlib import Path
+
+    suffix = Path(image.filename or "upload.png").suffix or ".png"
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        extracted_messages = extract_chat_text(tmp_path)
+    finally:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    if not extracted_messages:
+        return {
+            "success": False,
+            "data": None,
+            "metadata": {"error": "No chat messages could be extracted from image"},
+        }
+
+    if sender_a and sender_b:
+        user_a = _get_or_create_user(db, sender_a)
+        user_b = _get_or_create_user(db, sender_b)
+    else:
+        unique_senders: List[str] = []
+        for m in extracted_messages:
+            s = str(m.get("sender", "")).strip()
+            if s and s not in unique_senders:
+                unique_senders.append(s)
+        sa = unique_senders[0] if unique_senders else "Unknown"
+        sb = unique_senders[1] if len(unique_senders) > 1 else sa
+        user_a = _get_or_create_user(db, sa)
+        user_b = _get_or_create_user(db, sb)
+
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.person_a_id == user_a.id, Conversation.person_b_id == user_b.id)
+        .one_or_none()
+    )
+    if conversation is None:
+        conversation = Conversation(person_a_id=user_a.id, person_b_id=user_b.id)
+        db.add(conversation)
+        db.flush()
+
+    chat_summary = ConversationService(db).process_chat(
+        conversation_id=conversation.id,
+        messages=extracted_messages,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "conversation_id": conversation.id,
+            "extracted_message_count": len(extracted_messages),
+            "chat_summary": chat_summary,
+            "relationship_metrics": chat_summary.get("relationship_metrics"),
+            "relationship_stage": chat_summary.get("relationship_stage"),
+        },
+        "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
+    }
 
 
 @app.get("/conversations/{conversation_id}/relationship-summary")
