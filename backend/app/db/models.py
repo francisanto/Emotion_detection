@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -95,6 +95,13 @@ class Conversation(Base):
         uselist=False,
     )
 
+    analyses: Mapped[list["AnalysisRecord"]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete",
+        passive_deletes=True,
+        order_by="AnalysisRecord.created_at.desc()",
+    )
+
 
 class Message(Base):
     __tablename__ = "messages"
@@ -165,4 +172,25 @@ class RelationshipStage(Base):
     )
 
     conversation: Mapped["Conversation"] = relationship(back_populates="relationship_stage")
+
+
+class AnalysisRecord(Base):
+    __tablename__ = "analysis_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    conversation_id: Mapped[int] = mapped_column(
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    analysis_type: Mapped[str] = mapped_column(String(32), nullable=False, default="chat")
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True,
+    )
+
+    conversation: Mapped["Conversation"] = relationship(back_populates="analyses")
 

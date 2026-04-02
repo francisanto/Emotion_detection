@@ -1,80 +1,20 @@
-"""Conversation processing service (scikit-learn emotion + SQLAlchemy persistence)."""
+"""Conversation processing service with SQLAlchemy persistence."""
 
 from __future__ import annotations
 
 from collections import Counter
 from datetime import date, datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, List, Tuple
-
-import joblib
 from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.db.database import SessionLocal
-from app.db.models import Conversation, Message, User
+from app.db.models import AnalysisRecord, Conversation, Message, User
+from app.services.model_loader import get_text_model
 from app.services.relationship_metrics_service import RelationshipMetricsService
 from app.services.relationship_stage_service import RelationshipStageService
-from app.utils.preprocessing import preprocess_text
 
 logger = get_logger("conversation_service")
-
-
-# --- Model loading (singleton / lazy) ---
-_MODEL_DIR = Path(__file__).resolve().parents[2] / "models"  # backend/models/
-_EMOTION_MODEL_PATH = _MODEL_DIR / "emotion_model.pkl"
-_VECTORIZER_PATH = _MODEL_DIR / "vectorizer.pkl"
-
-_emotion_model: Any | None = None
-_vectorizer: Any | None = None
-_resources_loaded: bool = False
-
-
-def _normalize_emotion_label(label: str) -> str:
-    """
-    Normalize predicted labels into system categories.
-
-    Required categories:
-      joy, sadness, anger, fear, neutral
-    """
-    base = (label or "").strip().lower()
-    if base in {"joy", "happy", "happiness"}:
-        return "joy"
-    if base in {"sadness", "sad", "down", "unhappy", "sorrow"}:
-        return "sadness"
-    if base in {"anger", "angry"}:
-        return "anger"
-    if base in {"fear", "scared", "afraid", "anxious", "anxiety"}:
-        return "fear"
-    if base in {"love"}:
-        return "joy"
-    if base in {"neutral"}:
-        return "neutral"
-    return "neutral"
-
-
-def _load_resources() -> None:
-    """Load emotion model + vectorizer once. Fallback to heuristic if missing."""
-    global _emotion_model, _vectorizer, _resources_loaded
-    if _resources_loaded:
-        return
-
-    _resources_loaded = True
-    try:
-        _emotion_model = joblib.load(_EMOTION_MODEL_PATH)
-        _vectorizer = joblib.load(_VECTORIZER_PATH)
-        logger.info(
-            "Loaded scikit-learn emotion model",
-            extra={"emotion_model_path": str(_EMOTION_MODEL_PATH), "vectorizer_path": str(_VECTORIZER_PATH)},
-        )
-    except Exception as exc:
-        # Model files might not be present yet for student projects.
-        logger.warning(
-            "Could not load emotion_model/vectorizer; using heuristic fallback",
-            extra={"error": str(exc), "emotion_model_path": str(_EMOTION_MODEL_PATH), "vectorizer_path": str(_VECTORIZER_PATH)},
-        )
-        _emotion_model = None
-        _vectorizer = None
 
 
 def predict_emotion(text: str) -> Tuple[str, float]:
@@ -84,38 +24,14 @@ def predict_emotion(text: str) -> Tuple[str, float]:
     Returns:
       (emotion_category, confidence)
     """
-    _load_resources()
-    cleaned = preprocess_text(text)
-    lower = cleaned.lower()
-
-    # Fallback heuristic when model isn't available
-    if _emotion_model is None or _vectorizer is None:
-        if any(w in lower for w in ("happy", "glad", "joy", "awesome", "great", "love")):
-            return "joy", 0.70
-        if any(w in lower for w in ("sad", "unhappy", "depressed", "down")):
-            return "sadness", 0.70
-        if any(w in lower for w in ("angry", "mad", "furious", "annoyed")):
-            return "anger", 0.75
-        if any(w in lower for w in ("scared", "afraid", "fear", "anxious", "worried")):
-            return "fear", 0.75
-        return "neutral", 0.60
-
-    # sklearn path: vectorizer -> model
     try:
-        X = _vectorizer.transform([cleaned])
-        pred_label = _emotion_model.predict(X)[0]
-        emotion = _normalize_emotion_label(str(pred_label))
-
-        confidence = 0.5
-        if hasattr(_emotion_model, "predict_proba"):
-            proba = _emotion_model.predict_proba(X)
-            # max probability is a reasonable confidence proxy
-            if proba is not None and len(proba) > 0:
-                confidence = float(max(proba[0]))
-        return emotion, float(max(0.0, min(1.0, confidence)))
+        prediction = get_text_model().predict(text)
+        emotion = str(prediction.get("emotion", "neutral")).strip().lower()
+        confidence = float(prediction.get("confidence", 0.5))
+        return emotion or "neutral", float(max(0.0, min(1.0, confidence)))
     except Exception as exc:
-        logger.warning("Emotion prediction failed; using heuristic fallback", extra={"error": str(exc)})
-        return predict_emotion(text)
+        logger.warning("Emotion prediction failed; using neutral fallback", extra={"error": str(exc)})
+        return "neutral", 0.5
 
 
 def _parse_timestamp(value: Any, default_ts: datetime) -> datetime:
@@ -152,7 +68,7 @@ class ConversationService:
             logger.info("Created new user for conversation message", extra={"name": normalized, "user_id": user.id})
         return user
 
-    def process_chat(self, conversation_id: int, messages: List[Dict]) -> Dict[str, Any]:
+    def process_chat(self, conversation_id: int, messages: List[Dict], analysis_day: date | None = None) -> Dict[str, Any]:
         """
         Process and persist a list of chat messages.
 
@@ -203,20 +119,34 @@ class ConversationService:
 
         message_count = sum(emotion_counter.values())
 
-        # Store today's relationship metrics (used later to compute the stage).
+        # Store relationship metrics for requested analysis day.
+        target_day = analysis_day or date.today()
         relationship_metrics = RelationshipMetricsService(self._db).calculate_relationship_metrics(
             conversation_id=conversation_id,
-            day=date.today(),
+            day=target_day,
         )
 
         relationship_stage = RelationshipStageService(self._db).update_relationship_stage(conversation_id=conversation_id)
 
         summary = {
+            "participants": {
+                "person_a": conversation.person_a.name if conversation.person_a else None,
+                "person_b": conversation.person_b.name if conversation.person_b else None,
+            },
             "message_count": message_count,
             "emotions_detected": dict(emotion_counter),
             "relationship_metrics": relationship_metrics,
             "relationship_stage": relationship_stage,
         }
+
+        self._db.add(
+            AnalysisRecord(
+                conversation_id=conversation_id,
+                analysis_type="chat",
+                payload=summary,
+            )
+        )
+        self._db.commit()
         logger.info(
             "Conversation processing completed",
             extra={
@@ -229,7 +159,7 @@ class ConversationService:
         return summary
 
 
-def process_chat(conversation_id: int, messages: List[Dict]) -> Dict[str, Any]:
+def process_chat(conversation_id: int, messages: List[Dict], analysis_day: date | None = None) -> Dict[str, Any]:
     """
     Convenience wrapper with the required signature.
 
@@ -237,7 +167,7 @@ def process_chat(conversation_id: int, messages: List[Dict]) -> Dict[str, Any]:
     """
     db = SessionLocal()
     try:
-        return ConversationService(db).process_chat(conversation_id=conversation_id, messages=messages)
+        return ConversationService(db).process_chat(conversation_id=conversation_id, messages=messages, analysis_day=analysis_day)
     finally:
         db.close()
 

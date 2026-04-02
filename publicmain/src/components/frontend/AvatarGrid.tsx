@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Sparkles } from "lucide-react";
 import EmotionModal from "./EmotionModal";
 import AddPersonModal from "./AddPersonModal";
+
+const PEOPLE_STORAGE_KEY = "feelconnect_people_v1";
 
 export interface Person {
   id: number;
@@ -10,6 +12,7 @@ export interface Person {
   initials: string;
   conversationId?: number;
   relationshipStage?: string;
+  currentMood?: string;
   emotionCounts?: Record<string, number>;
   metrics?: {
     date: string;
@@ -28,9 +31,22 @@ export interface Person {
 }
 
 const AvatarGrid = () => {
-  const [people, setPeople] = useState<Person[]>([]);
+  const [people, setPeople] = useState<Person[]>(() => {
+    try {
+      const raw = localStorage.getItem(PEOPLE_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as Person[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people));
+  }, [people]);
 
   const handleAddPerson = (person: Omit<Person, "id">) => {
     setPeople((prev) => [...prev, { ...person, id: Date.now() }]);
@@ -55,7 +71,7 @@ const AvatarGrid = () => {
             People To Analyze
           </h2>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Add one person and analyze how your conversation evolves over time.
+            Track chat emotions, relationship stage, mood, and 7-day emotional trends.
           </p>
         </div>
 
@@ -76,7 +92,7 @@ const AvatarGrid = () => {
             <button
               key={person.id}
               onClick={() => setSelectedPerson(person)}
-              className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/30 hover:shadow-love transition-all duration-300 text-left animate-fade-in"
+              className="group bg-card rounded-2xl p-5 border border-border hover:border-primary/40 hover:shadow-love transition-all duration-300 text-left animate-fade-in"
               style={{ animationDelay: `${i * 60}ms` }}
             >
               <div className="relative mx-auto w-14 h-14 mb-3 rounded-full gradient-love flex items-center justify-center">
@@ -84,7 +100,18 @@ const AvatarGrid = () => {
               </div>
 
               <div className="text-center">
-                <h3 className="font-display text-sm font-semibold text-foreground">{person.name}, {person.age}</h3>
+                <h3 className="font-display text-sm font-semibold text-foreground inline-flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  {person.name}, {person.age}
+                </h3>
+                <div className="mt-2 flex flex-col gap-1">
+                  <span className="text-[11px] rounded-full px-2 py-0.5 bg-secondary text-foreground">
+                    Stage: <span className="capitalize font-medium">{person.relationshipStage ?? "-"}</span>
+                  </span>
+                  <span className="text-[11px] rounded-full px-2 py-0.5 bg-secondary text-foreground">
+                    Mood: <span className="capitalize font-medium">{person.currentMood ?? "-"}</span>
+                  </span>
+                </div>
               </div>
             </button>
           ))}

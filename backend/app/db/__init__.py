@@ -2,7 +2,7 @@
 
 from app.db.database import get_db, init_db
 from app.db.repository import AnalysisRepository
-from app.db.models import Base, Conversation, DailyRelationshipMetrics, Message, User
+from app.db.models import AnalysisRecord, Base, Conversation, DailyRelationshipMetrics, Message, RelationshipStage, User
 
 __all__ = [
     "get_db",
@@ -13,4 +13,6 @@ __all__ = [
     "Conversation",
     "Message",
     "DailyRelationshipMetrics",
+    "RelationshipStage",
+    "AnalysisRecord",
 ]

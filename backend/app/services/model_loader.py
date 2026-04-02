@@ -40,3 +40,15 @@ def reset_models() -> None:
     _text_model_instance = None
     _voice_model_instance = None
     logger.info("Models reset")
+
+
+def warmup_models() -> None:
+    """
+    Load and cache models once at startup.
+
+    This also triggers automatic download for remote model weights
+    (for example HuggingFace emotion models) on first run.
+    """
+    get_text_model()
+    get_voice_model()
+    logger.info("Model warmup completed")

@@ -25,6 +25,12 @@ class TextService:
         emo = emotion.strip().lower()
         if emo == "joy":
             return 0.2
+        if emo == "love":
+            return 0.15
+        if emo == "surprise":
+            return 0.45
+        if emo == "disgust":
+            return 0.7
         if emo == "neutral":
             return 0.4
         if emo == "sadness":
@@ -43,6 +49,12 @@ class TextService:
         emo = emotion.strip().lower()
         if emo == "joy":
             return "positive_social"
+        if emo == "love":
+            return "romantic_affection"
+        if emo == "surprise":
+            return "high_attention"
+        if emo == "disgust":
+            return "avoidant"
         if emo == "sadness":
             return "support_seeking"
         if emo == "anger":

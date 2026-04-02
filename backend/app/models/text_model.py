@@ -14,7 +14,7 @@ logger = get_logger("emotion_model")
 MODEL_NAME = "j-hartmann/emotion-english-distilroberta-base"
 
 # Normalized emotion labels expected by the system
-NORMALIZED_EMOTIONS = {"joy", "sadness", "anger", "fear", "neutral"}
+NORMALIZED_EMOTIONS = {"joy", "sadness", "anger", "fear", "neutral", "love", "surprise", "disgust"}
 
 
 class EmotionModel:
@@ -53,6 +53,12 @@ class EmotionModel:
         """Map model label to one of the normalized emotion categories."""
         base = label.lower().strip()
 
+        if "surprise" in base:
+            return "surprise"
+        if "disgust" in base:
+            return "disgust"
+        if "love" in base:
+            return "love"
         if any(k in base for k in ("joy", "happy", "happiness", "positive")):
             return "joy"
         if any(k in base for k in ("sad", "sadness", "sorrow", "depressed")):
@@ -71,12 +77,18 @@ class EmotionModel:
 
         if any(w in lower for w in ("happy", "glad", "joy", "awesome", "great")):
             return {"emotion": "joy", "confidence": 0.8}
+        if any(w in lower for w in ("love", "adore", "darling", "beloved", "dear")):
+            return {"emotion": "love", "confidence": 0.8}
         if any(w in lower for w in ("sad", "unhappy", "depressed", "down")):
             return {"emotion": "sadness", "confidence": 0.8}
         if any(w in lower for w in ("angry", "mad", "furious", "annoyed")):
             return {"emotion": "anger", "confidence": 0.8}
         if any(w in lower for w in ("scared", "afraid", "worried", "anxious")):
             return {"emotion": "fear", "confidence": 0.8}
+        if any(w in lower for w in ("wow", "omg", "amazing", "unexpected")):
+            return {"emotion": "surprise", "confidence": 0.75}
+        if any(w in lower for w in ("disgust", "gross", "awful", "nasty")):
+            return {"emotion": "disgust", "confidence": 0.75}
 
         return {"emotion": "neutral", "confidence": 0.7}
 

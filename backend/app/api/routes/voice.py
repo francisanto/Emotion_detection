@@ -1,10 +1,15 @@
 """Voice analysis API routes."""
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from datetime import date
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from sqlalchemy.orm import Session
 
 from app.api.dependencies import VoiceServiceDep
 from app.core.config import get_settings
 from app.core.logging import get_logger
+from app.db.database import get_db
+from app.db.models import AnalysisRecord
 from app.schemas.response_schema import APIResponse
 from app.schemas.voice_schema import VoiceAnalyzeResponse
 
@@ -21,6 +26,9 @@ ALLOWED_EXTENSIONS = (".wav", ".mp3", ".ogg", ".flac", ".m4a")
 async def analyze_voice(
     service: VoiceServiceDep,
     audio: UploadFile = File(..., description="Audio file (wav, mp3, etc.)"),
+    analysis_date: date | None = Form(default=None),
+    conversation_id: int | None = Form(default=None),
+    db: Session = Depends(get_db),
 ) -> APIResponse[VoiceAnalyzeResponse]:
     """
     Analyze voice for stress level, emotional intensity, and confidence.
@@ -47,6 +55,21 @@ async def analyze_voice(
 
     try:
         result = await service.analyze(content)
+        if conversation_id is not None:
+            db.add(
+                AnalysisRecord(
+                    conversation_id=conversation_id,
+                    analysis_type="voice",
+                    payload={
+                        "analysis_date": analysis_date.isoformat() if analysis_date else None,
+                        "dominant_emotion": result.dominant_emotion,
+                        "stress_level": result.stress_level,
+                        "emotional_intensity": result.emotional_intensity,
+                        "voice_confidence": result.voice_confidence,
+                    },
+                )
+            )
+            db.commit()
         return APIResponse(
             success=True,
             data=result,
@@ -54,6 +77,8 @@ async def analyze_voice(
                 "api_version": get_settings().app_version,
                 "file_name": audio.filename,
                 "file_size_bytes": len(content),
+                "analysis_date": analysis_date.isoformat() if analysis_date else None,
+                "conversation_id": conversation_id,
             },
         )
     except Exception as e:

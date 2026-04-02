@@ -24,9 +24,15 @@ class Settings(BaseSettings):
     # API
     api_v1_prefix: str = "/api/v1"
 
+    # Database
+    database_url: str = "mysql+pymysql://root:root@127.0.0.1:3306/emotion_detection"
+    auto_create_database: bool = True
+    db_echo: bool = False
+
     # Model paths (for future real model loading)
     text_model_path: Optional[str] = None
     voice_model_path: Optional[str] = None
+    preload_models_on_startup: bool = True
 
     # Audio processing
     sample_rate: int = 22050

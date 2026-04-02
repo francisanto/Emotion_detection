@@ -19,12 +19,13 @@ def detect_relationship_stage(metrics_list: List[DailyRelationshipMetrics]) -> s
     Detect relationship stage from historical DailyRelationshipMetrics.
 
     Rules:
-      - If total_messages < 10 => "stranger"
-      - avg_affection thresholds:
-        <0.05: friend
-        <0.15: interested
-        <0.3: crush
-        else: romantic
+      - If total_messages < 8 => "stranger"
+      - Weighted connection score = 0.6*avg_affection + 0.4*avg_positive
+      - score thresholds:
+        <0.12: friend
+        <0.25: like
+        <0.45: close
+        else: lover
     """
     if not metrics_list:
         return "stranger"
@@ -40,18 +41,20 @@ def detect_relationship_stage(metrics_list: List[DailyRelationshipMetrics]) -> s
         total_affection += float(getattr(m, "affection_score", 0.0) or 0.0) * msg_count
         total_positive += float(getattr(m, "positive_score", 0.0) or 0.0) * msg_count
 
-    if total_messages < 10:
+    if total_messages < 8:
         return "stranger"
 
     avg_affection = total_affection / max(1, total_messages)
+    avg_positive = total_positive / max(1, total_messages)
+    connection_score = (0.6 * avg_affection) + (0.4 * avg_positive)
 
-    if avg_affection < 0.05:
+    if connection_score < 0.12:
         return "friend"
-    if avg_affection < 0.15:
-        return "interested"
-    if avg_affection < 0.3:
-        return "crush"
-    return "romantic"
+    if connection_score < 0.25:
+        return "like"
+    if connection_score < 0.45:
+        return "close"
+    return "lover"
 
 
 class RelationshipStageService:
