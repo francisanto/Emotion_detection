@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Sparkles } from "lucide-react";
 import EmotionModal from "./EmotionModal";
 import AddPersonModal from "./AddPersonModal";
+import { FlingInsight, getFlingInsights } from "@/lib/api";
 
 const PEOPLE_STORAGE_KEY = "feelconnect_people_v1";
 
@@ -43,9 +44,17 @@ const AvatarGrid = () => {
   });
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [flingInsights, setFlingInsights] = useState<FlingInsight[]>([]);
 
   useEffect(() => {
     localStorage.setItem(PEOPLE_STORAGE_KEY, JSON.stringify(people));
+  }, [people]);
+
+  useEffect(() => {
+    const firstPerson = people[0];
+    getFlingInsights(firstPerson?.name)
+      .then((res) => setFlingInsights(res.data?.flings ?? []))
+      .catch(() => setFlingInsights([]));
   }, [people]);
 
   const handleAddPerson = (person: Omit<Person, "id">) => {
@@ -122,6 +131,28 @@ const AvatarGrid = () => {
             No conversation pairs yet. Click <span className="font-medium text-foreground">Add Person</span> to begin.
           </div>
         )}
+
+        <div className="mt-10">
+          <h3 className="font-display text-2xl font-bold text-foreground mb-3">Fling Section</h3>
+          {flingInsights.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+              No fling ranking yet. Analyze more romantic chats to populate this section.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {flingInsights.slice(0, 5).map((item) => (
+                <div key={item.conversation_id} className="rounded-xl border border-border bg-card px-4 py-3">
+                  <p className="text-sm font-semibold text-foreground">
+                    #{item.rank} {item.partner_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Score {item.score.toFixed(2)} | Romantic msgs {item.romantic_message_count}/{item.total_message_count} | Late-night {item.late_night_message_count}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedPerson && (
