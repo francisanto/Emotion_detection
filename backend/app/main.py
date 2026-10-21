@@ -26,6 +26,23 @@ settings = get_settings()
 setup_logging()
 logger = get_logger("main")
 
+ROMANTIC_KEYWORDS = [
+    "love you",
+    "miss you",
+    "baby",
+    "babe",
+    "darling",
+    "kiss",
+    "hug",
+    "romantic",
+    "good night",
+    "sweet dreams",
+    "date night",
+    "wife",
+    "girlfriend",
+    "boyfriend",
+]
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -503,6 +520,91 @@ async def get_relationship_stage_groups(db: Session = Depends(get_db)) -> dict[s
     return {
         "success": True,
         "data": grouped,
+        "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
+    }
+
+
+@app.get("/fling-insights")
+async def get_fling_insights(user_name: str | None = None, db: Session = Depends(get_db)) -> dict[str, Any]:
+    """
+    Rank likely romantic conversations into a separate "fling" section.
+    """
+    person_a_alias = aliased(User)
+    person_b_alias = aliased(User)
+    rows = (
+        db.query(Conversation, person_a_alias, person_b_alias)
+        .join(person_a_alias, Conversation.person_a_id == person_a_alias.id)
+        .join(person_b_alias, Conversation.person_b_id == person_b_alias.id)
+        .all()
+    )
+
+    requested = (user_name or "").strip().lower()
+    results: List[Dict[str, Any]] = []
+
+    for conversation, person_a, person_b in rows:
+        participants = [person_a.name or "", person_b.name or ""]
+        normalized_participants = [p.lower() for p in participants]
+        if requested and requested not in normalized_participants:
+            continue
+
+        msgs = (
+            db.query(Message)
+            .filter(Message.conversation_id == conversation.id)
+            .order_by(Message.timestamp.asc())
+            .all()
+        )
+        total = len(msgs)
+        if total == 0:
+            continue
+
+        romantic_count = 0
+        late_night_count = 0
+        for msg in msgs:
+            txt = (msg.message_text or "").lower()
+            if any(k in txt for k in ROMANTIC_KEYWORDS) or (msg.emotion or "").lower() in {"love", "joy"}:
+                romantic_count += 1
+
+            ts = msg.timestamp
+            if ts is not None:
+                hour = ts.hour
+                if hour >= 22 or hour <= 3:
+                    late_night_count += 1
+
+        romantic_ratio = romantic_count / total
+        late_night_ratio = late_night_count / total
+
+        # Weighted score for fling ranking.
+        score = (0.7 * romantic_ratio) + (0.2 * late_night_ratio) + (0.1 * min(total / 50.0, 1.0))
+        if score < 0.2:
+            continue
+
+        if requested:
+            partner_name = person_b.name if person_a.name.lower() == requested else person_a.name
+        else:
+            partner_name = f"{person_a.name} & {person_b.name}"
+
+        results.append(
+            {
+                "conversation_id": conversation.id,
+                "person_a": person_a.name,
+                "person_b": person_b.name,
+                "partner_name": partner_name,
+                "romantic_message_count": romantic_count,
+                "late_night_message_count": late_night_count,
+                "total_message_count": total,
+                "romantic_ratio": round(romantic_ratio, 4),
+                "late_night_ratio": round(late_night_ratio, 4),
+                "score": round(score, 4),
+            }
+        )
+
+    results.sort(key=lambda x: x["score"], reverse=True)
+    for idx, item in enumerate(results, start=1):
+        item["rank"] = idx
+
+    return {
+        "success": True,
+        "data": {"flings": results},
         "metadata": {"generated_at": datetime.now(timezone.utc).isoformat()},
     }
 

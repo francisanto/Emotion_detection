@@ -166,3 +166,23 @@ export async function getRelationshipSummary(conversationId: number, endDate?: s
   return handleResponse(response);
 }
 
+export interface FlingInsight {
+  conversation_id: number;
+  person_a: string;
+  person_b: string;
+  partner_name: string;
+  romantic_message_count: number;
+  late_night_message_count: number;
+  total_message_count: number;
+  romantic_ratio: number;
+  late_night_ratio: number;
+  score: number;
+  rank: number;
+}
+
+export async function getFlingInsights(userName?: string): Promise<ApiEnvelope<{ flings: FlingInsight[] }>> {
+  const query = userName ? `?user_name=${encodeURIComponent(userName)}` : "";
+  const response = await fetchWithFallback(`/fling-insights${query}`);
+  return handleResponse<{ flings: FlingInsight[] }>(response);
+}
+
