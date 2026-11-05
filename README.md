@@ -1,162 +1,335 @@
-<h1 align="center">Multimodal Conversational Emotion and Social Intent Detection</h1>
+# Multimodal Conversational Emotion and Social Intent Detection
+
+**An AI-powered system for understanding emotions, stress, and social intent through text, voice, and conversational context.**
 
 <p align="center">
-	AI-powered conversation understanding using <strong>BERT + Speech Features + Multimodal Fusion</strong>
+  <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch" />
+  <img src="https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00" alt="BERT" />
+  <img src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white" alt="SQLite" />
 </p>
 
-<p align="center">
-	<img src="https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00" alt="BERT" />
-	<img src="https://img.shields.io/badge/Voice-MFCC%20%7C%20Pitch%20%7C%20Energy-6D28D9" alt="Voice Features" />
-	<img src="https://img.shields.io/badge/Fusion-Multimodal-0EA5E9" alt="Fusion" />
-	<img src="https://img.shields.io/badge/Database-SQLite-003B57" alt="SQLite" />
-</p>
+## Overview
 
-<p align="center">
-	Detect emotion, stress, and social intent from chat text, voice clips, and chat screenshots with history-aware relationship analytics.
-</p>
+Digital conversations often lack the emotional context conveyed through voice, tone, and speaking patterns. Text-only analysis may overlook these signals, while voice-only analysis may miss the semantic meaning of a conversation.
 
-![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-06B6D4?logo=tailwindcss&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
-![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white)
-![Transformers](https://img.shields.io/badge/HuggingFace_Transformers-FFBF00?logo=huggingface&logoColor=black)
-![BERT](https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00)
+This project explores **multimodal conversational intelligence** by combining Natural Language Processing (NLP), speech feature extraction, and multimodal fusion to identify emotional patterns and social intent.
 
-## Team
-- Adithyan C P
-- Austin Shajan
-- Francis Anto
-- George Attokaran Jose
+The system analyzes:
 
-**Guide / Mentor:** Ms. Sabira P S, Assistant Professor, Department of Computer Science and Engineering
+- Text messages using BERT-based NLP.
+- Voice recordings using acoustic features such as MFCC, pitch, and energy.
+- Chat screenshots using OCR-based text extraction.
+- Historical conversational data to generate relationship-related analytics.
 
-## Abstract
-Digital communication often loses emotional clarity when only text is used. This project combines Natural Language Processing and speech analysis to improve emotion and intent detection.
+The outputs include emotion predictions, social intent, stress indicators, confidence scores, and historical trends.
 
-The text pipeline uses **BERT** as the core NLP model, while speech is analyzed using acoustic features such as MFCC, pitch, and energy. A multimodal fusion layer combines both outputs to generate final emotion and social intent predictions with improved robustness and reduced ambiguity.
+## Key Features
 
-## Why This Project
-- Text-only sentiment analysis misses tone and vocal context.
-- Speech-only analysis misses semantic context.
-- Multimodal fusion improves interpretability for conversational intelligence.
-
-## Core Features
-- Text emotion and intent analysis
-- Voice stress and emotional intensity analysis
-- Multimodal text+voice fusion endpoint
-- OCR-based chat screenshot analysis
-- Persistent conversation storage
-- Day-wise relationship metrics
-- Relationship stage tracking
-- Last 7-day analytics timeline
-
-## Model and AI Stack
-### Text Modality
-- **Primary model: BERT**
-- Tokenization and text preprocessing
-- Emotion and social intent prediction
-
-### Speech Modality
-- Feature extraction: MFCC, pitch, energy
-- Voice-level stress and emotional intensity inference
-
-### Fusion
-- Weighted multimodal combination of text and voice outputs
-- Final emotion, social intent, stress, and confidence estimation
-
-## Tech Stack (with icons)
-| Layer | Tools |
+| Feature | Description |
 |---|---|
-| Frontend | ![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?logo=tailwindcss&logoColor=white) |
-| Backend | ![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white) ![Pydantic](https://img.shields.io/badge/Pydantic-E92063?logo=pydantic&logoColor=white) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-D71F00?logo=sqlalchemy&logoColor=white) ![BERT](https://img.shields.io/badge/BERT-111827?logo=huggingface&logoColor=FFBF00) |
-| ML / Signal | ![Transformers](https://img.shields.io/badge/Transformers-FFBF00?logo=huggingface&logoColor=black) ![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?logo=pytorch&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white) ![Librosa](https://img.shields.io/badge/Librosa-A400FF?logo=python&logoColor=white) |
-| OCR / Imaging | ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white) ![Tesseract](https://img.shields.io/badge/Tesseract-OCR-2F7DB8) ![Pillow](https://img.shields.io/badge/Pillow-3776AB?logo=python&logoColor=white) |
-| Database | ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white) |
+| Text Emotion Analysis | Detects emotional patterns and social intent from text using BERT. |
+| Voice Emotion Analysis | Extracts acoustic features to estimate vocal emotion, stress, and intensity. |
+| Multimodal Fusion | Combines text and voice predictions for conversational analysis. |
+| Screenshot Analysis | Extracts conversation text from uploaded screenshots using OCR. |
+| Conversation History | Stores analyzed conversations for historical reference. |
+| Relationship Analytics | Generates day-wise conversational and relationship metrics. |
+| Relationship Stage Tracking | Tracks relationship stages using historical conversational patterns. |
+| Analytics Timeline | Provides a last-seven-day view of conversational trends. |
 
-## Functional Workflow
-1. User enters chat text, uploads audio, or uploads chat screenshot.
-2. Backend runs text analysis and/or voice analysis.
-3. Fusion module combines modality outputs.
-4. Messages and per-day metrics are stored in the database.
-5. Relationship stage is updated from historical behavior.
-6. Frontend displays current analysis and timeline trends.
+## System Architecture
 
-## API Overview
-### Health and Service
-- `GET /`
-- `GET /health`
+The project follows a modular architecture consisting of text processing, voice processing, multimodal fusion, and conversation analytics.
 
-### Text / Voice / Fusion
-- `POST /api/v1/text/analyze`
-- `POST /api/v1/voice/analyze`
-- `POST /api/v1/fusion/analyze`
+### Processing Pipeline
 
-### Conversation Analytics
-- `POST /test-chat`
-- `POST /analyze-chat`
-- `POST /analyze-chat-image`
-- `GET /conversations/{conversation_id}/relationship-summary`
+1. **Input Collection** – Accepts text messages, voice recordings, or chat screenshots.
+2. **Text Processing** – Processes textual input using preprocessing and BERT-based emotion and intent analysis.
+3. **Voice Processing** – Extracts acoustic features including MFCC, pitch, and energy.
+4. **Multimodal Fusion** – Combines the outputs from text and voice analysis.
+5. **Conversation Storage** – Stores messages, predictions, and related metrics.
+6. **Relationship Analytics** – Uses historical conversational information to calculate trends and relationship-related indicators.
+7. **Visualization** – Presents analysis results and historical trends through the frontend.
 
-## Project Structure
+### High-Level Architecture
+
 ```text
-Emotion_detection-austin_commits/
-|-- backend/
-|   |-- app/
-|   |   |-- api/routes/
-|   |   |-- core/
-|   |   |-- db/
-|   |   |-- schemas/
-|   |   |-- services/
-|   |   `-- utils/
-|   |-- requirements.txt
-|   `-- scripts/
-|-- publicmain/
-|   |-- src/
-|   |   |-- components/frontend/
-|   |   |-- lib/
-|   |   `-- pages/
-|   `-- package.json
-`-- README.md
+                 USER INPUT
+                      |
+          +-----------+-----------+
+          |           |           |
+        TEXT        VOICE      SCREENSHOT
+          |           |           |
+          v           v           v
+       BERT       AUDIO         OCR
+      ANALYSIS   FEATURES    EXTRACTION
+          |           |           |
+          |           |       EXTRACTED
+          |           |         TEXT
+          |           |           |
+          +-----------+-----------+
+                      |
+                      v
+              MULTIMODAL FUSION
+                      |
+                      v
+              FINAL PREDICTIONS
+                      |
+          +-----------+-----------+
+          |           |           |
+        Emotion    Social       Stress
+                  Intent
+                      |
+                      v
+             CONVERSATION STORAGE
+                      |
+                      v
+            RELATIONSHIP ANALYTICS
+                      |
+                      v
+               FRONTEND DASHBOARD
 ```
 
-## Quick Start
-### Backend
+## Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Frontend | React, TypeScript, Vite, Tailwind CSS |
+| Backend | Python, FastAPI, Pydantic |
+| NLP | BERT, Hugging Face Transformers |
+| Deep Learning | PyTorch |
+| Machine Learning | Scikit-learn |
+| Audio Processing | Librosa, MFCC, Pitch, Energy |
+| OCR and Image Processing | OpenCV, Tesseract OCR, Pillow |
+| Database | SQLite |
+| ORM / Database Layer | SQLAlchemy |
+
+## Model and AI Components
+
+### 1. Text Modality
+
+**Primary Model: BERT**
+
+The text processing pipeline uses BERT-based contextual representations to analyze conversational text.
+
+Key components:
+- Text preprocessing and tokenization.
+- Contextual language representation.
+- Emotion classification.
+- Social intent prediction.
+
+### 2. Speech Modality
+
+The voice processing pipeline extracts acoustic characteristics from speech recordings.
+
+Features include:
+- **MFCC:** Represents spectral characteristics of speech.
+- **Pitch:** Captures variations in vocal frequency.
+- **Energy:** Measures vocal intensity.
+
+These features support voice-level emotion, stress, and intensity estimation.
+
+### 3. Multimodal Fusion
+
+The fusion layer combines the predictions generated by the text and voice pipelines.
+
+It uses weighted multimodal combination to estimate:
+- Final emotion.
+- Social intent.
+- Stress level.
+- Prediction confidence.
+
+This approach aims to reduce ambiguity when textual meaning and vocal expression provide different signals.
+
+## API Documentation
+
+The backend exposes REST API endpoints through FastAPI.
+
+Interactive API documentation is available at:
+
+`http://localhost:8005/docs`
+
+### Health and Service
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/` | Root endpoint |
+| GET | `/health` | Health check |
+
+### Text, Voice and Fusion
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/v1/text/analyze` | Analyzes conversational text |
+| POST | `/api/v1/voice/analyze` | Analyzes voice recordings |
+| POST | `/api/v1/fusion/analyze` | Performs multimodal analysis |
+
+### Conversation Analytics
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/test-chat` | Test conversational analysis |
+| POST | `/analyze-chat` | Analyzes conversation text |
+| POST | `/analyze-chat-image` | Extracts and analyzes chat screenshot content |
+| GET | `/conversations/{conversation_id}/relationship-summary` | Retrieves relationship analytics |
+
+## Project Structure
+
+```text
+Emotion_detection-austin_commits/
+│
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── routes/
+│   │   ├── core/
+│   │   ├── db/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   └── utils/
+│   │
+│   ├── requirements.txt
+│   └── scripts/
+│
+├── publicmain/
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── frontend/
+│   │   ├── lib/
+│   │   └── pages/
+│   │
+│   └── package.json
+│
+└── README.md
+```
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have the following installed:
+
+- Python 3.10 or later.
+- Node.js and npm.
+- Git.
+
+### 1. Clone the Repository
+
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd Emotion_detection-austin_commits
+```
+
+### 2. Backend Setup
+
+Navigate to the backend directory:
+
 ```bash
 cd backend
+```
+
+Create a virtual environment:
+
+**macOS / Linux**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**Windows**
+
+```bash
 python -m venv .venv
 .venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
+```
+
+Start the FastAPI server:
+
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
 ```
 
-### Frontend
+Backend will be available at:
+
+- API: `http://localhost:8005`
+- Swagger Documentation: `http://localhost:8005/docs`
+
+### 3. Frontend Setup
+
+Open another terminal and navigate to the frontend directory:
+
 ```bash
 cd publicmain
+```
+
+Install dependencies:
+
+```bash
 npm install
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-### Local URLs
-- Frontend: `http://localhost:8080`
-- Backend: `http://localhost:8005`
-- API Docs: `http://localhost:8005/docs`
+Frontend:
 
-## Results Summary
-- Better performance than text-only analysis for conversational interpretation.
-- Improved handling of tone-driven ambiguity.
-- Effective social intent classification (friendly, romantic, neutral).
-- Useful trend analysis through 7-day relationship metrics.
+`http://localhost:8080`
+
+> Make sure the frontend API configuration points to the correct backend URL.
+
+## Results and Observations
+
+The project explores the benefits of combining textual and acoustic information for conversational emotion analysis.
+
+The current system focuses on:
+
+- Improving conversational interpretation beyond text-only analysis.
+- Incorporating vocal characteristics to identify tone-driven ambiguity.
+- Classifying social intent into categories such as friendly, romantic, and neutral.
+- Generating historical conversational trends through day-wise and seven-day analytics.
+
+*Quantitative performance metrics and evaluation results can be added here once benchmark testing is documented.*
 
 ## Future Improvements
-- Fine-tune BERT on larger conversation datasets.
-- Better speaker-aware voice modeling.
-- Add authentication and per-user ownership mapping.
-- Expand long-range timeline analytics and dashboarding.
+
+- Fine-tune BERT using larger and more diverse conversational datasets.
+- Improve speaker-aware voice emotion modeling.
+- Introduce authentication and user-level conversation ownership.
+- Expand long-term relationship and conversational analytics.
+- Improve multimodal fusion using more advanced architectures.
+- Add comprehensive model evaluation and performance benchmarking.
+
+## Team
+
+| Name | Role |
+|---|---|
+| Adithyan C P | Research and Documentation |
+| Austin Shajan | UI UX |
+| Francis Anto | Backend Developer  |
+| George Attokaran Jose | Backend Developer |
 
 ## References
-1. Poria S et al., "Multimodal Sentiment Analysis," IEEE, 2017.
-2. Devlin J et al., "BERT: Pre-training of Deep Bidirectional Transformers," NAACL, 2019.
-3. Busso C et al., "IEMOCAP Dataset," 2008.
+
+1. Poria, S. et al. (2017). *Multimodal Sentiment Analysis: Addressing Key Issues and Setting Up the Baselines.*
+2. Devlin, J. et al. (2019). *BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.* NAACL-HLT.
+3. Busso, C. et al. (2008). *IEMOCAP: Interactive Emotional Dyadic Motion Capture Database.*
+
+---
+
+<p align="center">
+  <strong>Multimodal Conversational Intelligence</strong><br/>
+  <sub>Understanding conversations beyond words.</sub>
+</p>
