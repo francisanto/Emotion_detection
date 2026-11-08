@@ -1,14 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
-import { Activity, Image as ImageIcon, Lightbulb, MessageSquare, Mic, Sparkles, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Activity,
+  Calendar,
+  ChevronDown,
+  Heart,
+  Image as ImageIcon,
+  Lightbulb,
+  Loader2,
+  MessageSquare,
+  Smile,
+  Sparkles,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Person } from "./AvatarGrid";
 import {
   analyzeChat,
   analyzeChatImage,
-  analyzeVoice,
   AnalyzeChatPayloadMessage,
   getRelationshipSummary,
-  VoiceAnalyzeData,
 } from "@/lib/api";
 
 interface Props {
@@ -18,7 +30,18 @@ interface Props {
   onDelete: (id: number) => void;
 }
 
-type InputMode = "text" | "screenshot" | "audio";
+type InputMode = "text" | "screenshot";
+
+const MOOD_EMOJIS: Record<string, string> = {
+  joy: "😊",
+  love: "💕",
+  anger: "😠",
+  sadness: "😢",
+  fear: "😨",
+  surprise: "😲",
+  disgust: "😒",
+  neutral: "😐",
+};
 
 const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
   const [activeMode, setActiveMode] = useState<InputMode>("text");
@@ -33,8 +56,8 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
   const [currentMood, setCurrentMood] = useState<string | null>(person.currentMood ?? null);
   const [emotionCounts, setEmotionCounts] = useState<Record<string, number>>(person.emotionCounts ?? {});
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [selectedAudio, setSelectedAudio] = useState<File | null>(null);
-  const [voiceData, setVoiceData] = useState<VoiceAnalyzeData | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [metrics, setMetrics] = useState<{
     positive_score: number;
     negative_score: number;
@@ -58,7 +81,6 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
 
     const messages: AnalyzeChatPayloadMessage[] = [];
     for (const line of lines) {
-      // expected format: Name: message
       const sep = line.indexOf(":");
       if (sep === -1) continue;
       const sender = line.slice(0, sep).trim();
@@ -153,28 +175,6 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
     }
   };
 
-  const runVoiceAnalysis = async () => {
-    if (!selectedAudio) {
-      setError("Please select an audio file first.");
-      return;
-    }
-    setError(null);
-    setAnalysing(true);
-    try {
-      const res = await analyzeVoice(selectedAudio, analysisDate, conversationId ?? undefined);
-      if (!res.data) throw new Error("Empty voice response");
-      setVoiceData(res.data);
-      setCurrentMood(res.data.dominant_emotion ?? currentMood ?? null);
-      if (conversationId) {
-        await loadSummary(conversationId, analysisDate);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to analyze voice");
-    } finally {
-      setAnalysing(false);
-    }
-  };
-
   const handleDelete = () => {
     if (confirmDelete) {
       onDelete(person.id);
@@ -190,6 +190,7 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
       Object.entries(emotionCounts).sort((a, b) => b[1] - a[1]),
     [emotionCounts],
   );
+
   const graphData = useMemo(
     () =>
       [...timeline]
@@ -202,10 +203,12 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
         })),
     [timeline],
   );
+
   const totalAnalyzedMessages = useMemo(
     () => Object.values(emotionCounts).reduce((sum, count) => sum + Number(count || 0), 0),
     [emotionCounts],
   );
+
   const emotionSuggestions: Record<string, string[]> = {
     anger: ["Take a 5-minute pause before replying.", "Use calm words and short sentences."],
     sadness: ["Offer support and reassurance.", "Avoid harsh or dismissive language."],
@@ -216,217 +219,387 @@ const EmotionModal = ({ person, onClose, onUpdate, onDelete }: Props) => {
     disgust: ["Avoid blaming language.", "Refocus on constructive points."],
     neutral: ["Keep communication clear.", "Ask open-ended follow-up questions."],
   };
+
   const activeSuggestions = emotionSuggestions[(currentMood ?? "neutral").toLowerCase()] ?? emotionSuggestions.neutral;
 
+  const posPct = metrics ? Math.round(metrics.positive_score * 100) : 0;
+  const negPct = metrics ? Math.round(metrics.negative_score * 100) : 0;
+  const affPct = metrics ? Math.round(metrics.affection_score * 100) : 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" onClick={onClose} />
 
-      <div className="relative bg-card rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border animate-scale-in">
-        {/* Header */}
-        <div className="gradient-love p-5 rounded-t-2xl relative">
-          <div className="absolute top-3 right-3 flex items-center gap-2">
-            <button
-              onClick={handleDelete}
-              className={`p-1.5 rounded-full transition-all duration-200 ${
-                confirmDelete
-                  ? "bg-primary-foreground/30 text-primary-foreground"
-                  : "text-primary-foreground/50 hover:text-primary-foreground hover:bg-primary-foreground/10"
-              }`}
-              title={confirmDelete ? "Click again to confirm" : "Delete person"}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button onClick={onClose} className="text-primary-foreground/70 hover:text-primary-foreground transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+      {/* Modal Dialog */}
+      <div className="relative bg-card rounded-2xl shadow-2xl max-w-lg w-full max-h-[88vh] flex flex-col border border-border animate-scale-in overflow-hidden">
+        {/* Subtle accent bar */}
+        <div className="h-1 w-full gradient-love flex-shrink-0" />
 
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full border-2 border-primary-foreground/20 overflow-hidden flex-shrink-0">
-              <div className="w-full h-full bg-primary-foreground/20 flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl tracking-wide">{person.initials}</span>
-            </div>
+        {/* Minimal Header */}
+        <div className="px-4 sm:px-5 py-3 border-b border-border/70 flex items-center justify-between flex-shrink-0 bg-card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full gradient-love flex items-center justify-center flex-shrink-0 shadow-sm ring-2 ring-primary/20">
+              <span className="text-primary-foreground font-bold text-sm tracking-wide">{person.initials}</span>
             </div>
             <div>
-              <h2 className="font-display text-2xl font-bold text-primary-foreground tracking-tight">{person.name}, {person.age}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-primary-foreground/70 text-sm">Conversation analysis</span>
+              <h2 className="font-display text-base sm:text-lg font-bold text-foreground leading-tight flex items-center gap-1.5">
+                {person.name}
+                <span className="text-xs font-normal text-muted-foreground">· {person.age}y</span>
+              </h2>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                <span>Conversation Analysis</span>
+                {conversationId && (
+                  <>
+                    <span className="inline-block w-1 h-1 rounded-full bg-muted-foreground/40" />
+                    <span className="text-[10px] font-mono text-muted-foreground/80">ID #{conversationId}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
-          {confirmDelete && (
-            <p className="text-primary-foreground/80 text-xs mt-2 animate-fade-in">Click delete again to confirm removal</p>
-          )}
+
+          <div className="flex items-center gap-1.5">
+            {confirmDelete ? (
+              <button
+                onClick={handleDelete}
+                className="text-xs px-2.5 py-1 rounded-lg bg-destructive text-destructive-foreground font-medium animate-pulse"
+              >
+                Confirm?
+              </button>
+            ) : (
+              <button
+                onClick={handleDelete}
+                className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                title="Delete person"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-5 space-y-6">
-          <div className="rounded-xl border border-border p-2 grid grid-cols-3 gap-2 bg-secondary/50 animate-fade-in">
-            <button
-              onClick={() => setActiveMode("text")}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-300 ${activeMode === "text" ? "gradient-love text-primary-foreground shadow-love" : "text-foreground/80 hover:bg-background hover:scale-[1.02]"}`}
-            >
-              <span className="inline-flex items-center gap-2"><MessageSquare className="w-4 h-4" />Text</span>
-            </button>
-            <button
-              onClick={() => setActiveMode("screenshot")}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-300 ${activeMode === "screenshot" ? "gradient-love text-primary-foreground shadow-love" : "text-foreground/80 hover:bg-background hover:scale-[1.02]"}`}
-            >
-              <span className="inline-flex items-center gap-2"><ImageIcon className="w-4 h-4" />Screenshot</span>
-            </button>
-            <button
-              onClick={() => setActiveMode("audio")}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-300 ${activeMode === "audio" ? "gradient-love text-primary-foreground shadow-love" : "text-foreground/80 hover:bg-background hover:scale-[1.02]"}`}
-            >
-              <span className="inline-flex items-center gap-2"><Mic className="w-4 h-4" />Audio</span>
-            </button>
-          </div>
-          <div className="rounded-xl border border-border p-4 bg-secondary/30 animate-fade-in">
-            <label className="text-sm font-semibold text-foreground mb-2 block">Analysis Date</label>
-            <input
-              type="date"
-              value={analysisDate}
-              onChange={(e) => setAnalysisDate(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium"
-            />
+        {/* Scrollable Content */}
+        <div className="p-4 sm:p-5 pb-6 overflow-y-auto space-y-3.5">
+          {/* Compact Toolbar: Mode Switcher + Date Picker */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="inline-flex items-center p-0.5 bg-muted/70 rounded-xl border border-border/60">
+              <button
+                type="button"
+                onClick={() => setActiveMode("text")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeMode === "text"
+                    ? "bg-card text-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                <span>Text</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveMode("screenshot")}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeMode === "screenshot"
+                    ? "bg-card text-foreground shadow-sm font-semibold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                <span>Screenshot</span>
+              </button>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-muted/30 border border-border/60 rounded-xl text-xs text-muted-foreground focus-within:border-primary/40 focus-within:bg-card transition-colors">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <input
+                type="date"
+                value={analysisDate}
+                onChange={(e) => setAnalysisDate(e.target.value)}
+                className="bg-transparent text-xs text-foreground font-medium focus:outline-none cursor-pointer"
+                title="Analysis Date"
+              />
+            </div>
           </div>
 
+          {/* Mode 1: Text Analysis */}
           {activeMode === "text" && (
-            <div className="rounded-xl border border-border p-4 animate-fade-in">
-              <label className="text-sm font-semibold text-foreground mb-2 block">Chat lines (Sender: message)</label>
+            <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">Chat Lines</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setChatInput(`${person.name}: hey, how was your day?\nMe: pretty good! how about you?\n${person.name}: missed talking to you today`)
+                  }
+                  className="text-[11px] text-primary hover:underline font-medium"
+                >
+                  Insert example
+                </button>
+              </div>
               <textarea
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
-                rows={7}
+                rows={4}
                 placeholder={`${person.name}: hi how are you\nMe: I am good`}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs sm:text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all font-mono resize-y"
               />
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Format: <code className="px-1 py-0.5 rounded bg-muted text-[10px]">Sender: message</code></span>
+              </div>
               <button
+                type="button"
                 onClick={runTextAnalysis}
                 disabled={analysing}
-                className="mt-3 w-full gradient-love text-primary-foreground py-2.5 rounded-xl font-medium shadow-love hover:opacity-90 disabled:opacity-70"
+                className="w-full gradient-love text-primary-foreground py-2 px-4 rounded-xl font-medium text-xs sm:text-sm shadow-love hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {analysing ? "Analyzing..." : "Analyze Chat Text"}
+                {analysing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Analyze Chat Text</span>
+                  </>
+                )}
               </button>
             </div>
           )}
 
+          {/* Mode 2: Screenshot Analysis */}
           {activeMode === "screenshot" && (
-            <div className="rounded-xl border border-border p-4 space-y-3 animate-fade-in">
-              <h3 className="text-sm font-semibold text-foreground">Chat Screenshot Analysis</h3>
+            <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2.5">
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
-                onChange={(e) => setSelectedImage(e.target.files?.[0] ?? null)}
-                className="w-full text-sm"
+                className="hidden"
+                onChange={(e) => {
+                  setSelectedImage(e.target.files?.[0] ?? null);
+                }}
               />
+
+              {!selectedImage ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 rounded-xl p-6 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-2"
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Click to upload chat screenshot</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">PNG, JPG, or WebP</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-border/80 bg-muted/30 rounded-xl p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <ImageIcon className="w-5 h-5 text-primary flex-shrink-0" />
+                    <div className="truncate text-xs">
+                      <p className="font-medium text-foreground truncate">{selectedImage.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{(selectedImage.size / 1024).toFixed(0)} KB</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImage(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    title="Remove image"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               <button
+                type="button"
                 onClick={runScreenshotAnalysis}
-                disabled={analysing}
-                className="w-full gradient-love text-primary-foreground py-2.5 rounded-xl font-medium shadow-love hover:opacity-90 disabled:opacity-70"
+                disabled={analysing || !selectedImage}
+                className="w-full gradient-love text-primary-foreground py-2 px-4 rounded-xl font-medium text-xs sm:text-sm shadow-love hover:opacity-95 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {analysing ? "Analyzing..." : "Analyze Chat Screenshot"}
+                {analysing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Processing Screenshot OCR...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Analyze Chat Screenshot</span>
+                  </>
+                )}
               </button>
             </div>
           )}
 
-          {activeMode === "audio" && (
-            <div className="rounded-xl border border-border p-4 space-y-3 animate-fade-in">
-              <h3 className="text-sm font-semibold text-foreground">Audio File Analysis</h3>
-              <input
-                type="file"
-                accept="audio/*,.wav,.mp3,.ogg,.flac,.m4a"
-                onChange={(e) => setSelectedAudio(e.target.files?.[0] ?? null)}
-                className="w-full text-sm"
-              />
-              <button
-                onClick={runVoiceAnalysis}
-                disabled={analysing}
-                className="w-full gradient-love text-primary-foreground py-2.5 rounded-xl font-medium shadow-love hover:opacity-90 disabled:opacity-70"
-              >
-                {analysing ? "Analyzing..." : "Analyze Audio"}
+          {/* Error Message */}
+          {error && (
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-3 py-2 text-xs text-destructive flex items-center justify-between">
+              <span>{error}</span>
+              <button onClick={() => setError(null)} className="p-1 hover:opacity-75">
+                <X className="w-3.5 h-3.5" />
               </button>
-              {voiceData && (
-                <p className="text-sm text-muted-foreground">
-                  Voice Emotion: <span className="font-medium text-foreground capitalize">{voiceData.dominant_emotion ?? "neutral"}</span>
-                  {" | "}Stress: {voiceData.stress_level.toFixed(2)}
-                </p>
+            </div>
+          )}
+
+          {/* Minimal Relationship Summary Card */}
+          <div className="rounded-xl border border-border/70 bg-card p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span>Relationship Analysis</span>
+              </div>
+              {totalAnalyzedMessages > 0 && (
+                <span className="text-[11px] text-muted-foreground font-medium">
+                  {totalAnalyzedMessages} {totalAnalyzedMessages === 1 ? "message" : "messages"}
+                </span>
               )}
             </div>
-          )}
 
-          {error && <div className="text-sm text-red-500">{error}</div>}
+            {/* Stage & Mood mini cards */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-muted/30 border border-border/60 rounded-lg p-2.5 flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                  <Heart className="w-3.5 h-3.5" />
+                </div>
+                <div className="overflow-hidden">
+                  <div className="text-[10px] text-muted-foreground uppercase font-medium">Stage</div>
+                  <div className="font-semibold text-foreground capitalize truncate">
+                    {stage ?? "Pending"}
+                  </div>
+                </div>
+              </div>
 
-          <div className="bg-secondary rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              Relationship Analysis
-            </h3>
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>Conversation ID: {conversationId ?? "-"}</p>
-              <p>Relationship Stage: <span className="font-medium text-foreground">{stage ?? "-"}</span></p>
-              <p>Current Mood: <span className="font-medium text-foreground capitalize">{currentMood ?? "-"}</span></p>
-              <p>Messages analyzed: {totalAnalyzedMessages}</p>
-              <p>Positive: {metrics ? metrics.positive_score.toFixed(2) : "-"} | Negative: {metrics ? metrics.negative_score.toFixed(2) : "-"} | Affection: {metrics ? metrics.affection_score.toFixed(2) : "-"}</p>
+              <div className="bg-muted/30 border border-border/60 rounded-lg p-2.5 flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0 text-primary">
+                  <Smile className="w-3.5 h-3.5" />
+                </div>
+                <div className="overflow-hidden">
+                  <div className="text-[10px] text-muted-foreground uppercase font-medium">Mood</div>
+                  <div className="font-semibold text-foreground capitalize truncate flex items-center gap-1">
+                    <span>{MOOD_EMOJIS[(currentMood ?? "").toLowerCase()] ?? "✨"}</span>
+                    <span>{currentMood ?? "Neutral"}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => setShowSuggestions((v) => !v)}
-              className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm hover:bg-background"
-            >
-              <Lightbulb className="w-4 h-4 text-primary" />
-              {showSuggestions ? "Hide Suggestions" : "Show Suggestions"}
-            </button>
-            {showSuggestions && (
-              <div className="mt-3 rounded-lg border border-border bg-background p-3">
-                <p className="text-sm font-semibold text-foreground mb-1 capitalize">Suggestions for {currentMood ?? "neutral"} mood</p>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  {activeSuggestions.map((tip) => (
-                    <li key={tip}>- {tip}</li>
-                  ))}
-                </ul>
+
+            {/* Metrics Breakdown if available */}
+            {metrics && (
+              <div className="space-y-2 pt-1 border-t border-border/50">
+                <div className="grid grid-cols-3 gap-1.5 text-center">
+                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg py-1 px-1.5">
+                    <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Positive</div>
+                    <div className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{posPct}%</div>
+                  </div>
+                  <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg py-1 px-1.5">
+                    <div className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">Affection</div>
+                    <div className="text-xs font-bold text-rose-700 dark:text-rose-300">{affPct}%</div>
+                  </div>
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg py-1 px-1.5">
+                    <div className="text-[10px] text-red-600 dark:text-red-400 font-medium">Negative</div>
+                    <div className="text-xs font-bold text-red-700 dark:text-red-300">{negPct}%</div>
+                  </div>
+                </div>
+                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden flex">
+                  <div style={{ width: `${posPct}%` }} className="bg-emerald-500 h-full transition-all" />
+                  <div style={{ width: `${affPct}%` }} className="bg-rose-500 h-full transition-all" />
+                  <div style={{ width: `${negPct}%` }} className="bg-red-500 h-full transition-all" />
+                </div>
               </div>
             )}
+
+            {/* Advice / Suggestions accordion */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowSuggestions((v) => !v)}
+                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-muted/40 hover:bg-muted/70 text-xs text-foreground/80 hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-1.5 font-medium">
+                  <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Advice for <span className="capitalize">{currentMood ?? "neutral"}</span> mood</span>
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${
+                    showSuggestions ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+              {showSuggestions && (
+                <div className="mt-2 rounded-lg border border-border/60 bg-muted/20 p-2.5 text-xs text-muted-foreground space-y-1.5 animate-fade-in">
+                  {activeSuggestions.map((tip) => (
+                    <div key={tip} className="flex items-start gap-1.5">
+                      <span className="text-primary font-bold">•</span>
+                      <span>{tip}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="rounded-xl border border-border p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-2">Emotion Counts</h3>
-            {emotionList.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No results yet.</p>
-            ) : (
-              <ul className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+          {/* Emotion Breakdown Chips (Only when data exists) */}
+          {emotionList.length > 0 && (
+            <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Emotion Counts
+              </div>
+              <div className="flex flex-wrap gap-1.5">
                 {emotionList.map(([emotion, count]) => (
-                  <li key={emotion} className="rounded-lg border border-border px-2 py-1 bg-secondary/40">
-                    <span className="capitalize">{emotion}</span>: <span className="font-medium text-foreground">{count}</span>
-                  </li>
+                  <span
+                    key={emotion}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs bg-muted/60 border border-border/50 text-foreground font-medium"
+                  >
+                    <span>{MOOD_EMOJIS[emotion.toLowerCase()] ?? "✨"}</span>
+                    <span className="capitalize">{emotion}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-background border border-border/50 text-foreground">
+                      {count}
+                    </span>
+                  </span>
                 ))}
-              </ul>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
 
-          <div className="rounded-xl border border-border p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              Emotion Intensity Trend
-            </h3>
-            {timeline.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No timeline data yet.</p>
-            ) : (
-              <div className="h-56 w-full">
+          {/* Emotion Intensity Trend Chart (Only when timeline exists) */}
+          {timeline.length > 0 && (
+            <div className="rounded-xl border border-border/70 bg-card p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-primary" /> Emotion Intensity Trend
+                </h4>
+                <span className="text-[10px] text-muted-foreground">Last {timeline.length} entries</span>
+              </div>
+              <div className="h-36 w-full pt-1">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={graphData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis domain={[0, 1]} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="positive" fill="#22c55e" radius={[4, 4, 0, 0]} animationDuration={900} />
-                    <Bar dataKey="negative" fill="#ef4444" radius={[4, 4, 0, 0]} animationDuration={900} />
-                    <Bar dataKey="affection" fill="#e11d48" radius={[4, 4, 0, 0]} animationDuration={900} />
+                  <BarChart data={graphData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                    <YAxis domain={[0, 1]} tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ fontSize: 11, borderRadius: 8 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
+                    <Bar dataKey="positive" fill="#22c55e" radius={[3, 3, 0, 0]} name="Positive" />
+                    <Bar dataKey="negative" fill="#ef4444" radius={[3, 3, 0, 0]} name="Negative" />
+                    <Bar dataKey="affection" fill="#e11d48" radius={[3, 3, 0, 0]} name="Affection" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
