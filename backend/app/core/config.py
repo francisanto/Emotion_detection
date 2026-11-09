@@ -29,23 +29,12 @@ class Settings(BaseSettings):
     auto_create_database: bool = True
     db_echo: bool = False
 
-    # Model paths (for future real model loading)
+    # Model paths (for text emotion model)
     text_model_path: Optional[str] = None
-    voice_model_path: Optional[str] = None
     preload_models_on_startup: bool = True
-
-    # Audio processing
-    sample_rate: int = 22050
-    n_mfcc: int = 13
-    max_audio_duration_seconds: float = 30.0
 
     # Logging
     log_level: str = "INFO"
-
-    @property
-    def max_audio_samples(self) -> int:
-        """Maximum number of audio samples based on duration."""
-        return int(self.sample_rate * self.max_audio_duration_seconds)
 
 
 @lru_cache
