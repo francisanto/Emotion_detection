@@ -51,7 +51,7 @@ async function fetchWithFallback(path: string, init?: RequestInit): Promise<Resp
   for (const baseUrl of urls) {
     try {
       const controller = new AbortController();
-      // Large OCR/audio requests can take longer; avoid premature client aborts.
+      // Large OCR requests can take longer; avoid premature client aborts.
       const timeout = window.setTimeout(() => controller.abort(), 180000);
       const response = await fetch(`${baseUrl}${path}`, { ...init, signal: controller.signal });
       window.clearTimeout(timeout);
