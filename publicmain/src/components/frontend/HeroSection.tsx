@@ -59,7 +59,7 @@ const HeroSection = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
         <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-12 leading-relaxed">
           AI-powered relationship analysis for dating apps. Understand emotions
-          through images and voice to predict connection strength.
+          through chat messages and screenshots to predict connection strength.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

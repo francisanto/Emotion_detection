@@ -4,13 +4,6 @@ export interface AnalyzeChatPayloadMessage {
   timestamp?: string;
 }
 
-export interface VoiceAnalyzeData {
-  stress_level: number;
-  emotional_intensity: number;
-  voice_confidence: number;
-  dominant_emotion?: string | null;
-}
-
 export interface AnalyzeChatResponseData {
   conversation_id: number;
   relationship_stage: string;
@@ -118,23 +111,6 @@ export async function analyzeChatImage(
     body: formData,
   });
   return handleResponse<AnalyzeChatResponseData>(response);
-}
-
-export async function analyzeVoice(
-  audioFile: File,
-  analysisDate?: string,
-  conversationId?: number,
-): Promise<ApiEnvelope<VoiceAnalyzeData>> {
-  const formData = new FormData();
-  formData.append("audio", audioFile);
-  if (analysisDate) formData.append("analysis_date", analysisDate);
-  if (conversationId) formData.append("conversation_id", String(conversationId));
-
-  const response = await fetchWithFallback(`/api/v1/voice/analyze`, {
-    method: "POST",
-    body: formData,
-  });
-  return handleResponse<VoiceAnalyzeData>(response);
 }
 
 export async function getRelationshipSummary(conversationId: number, endDate?: string): Promise<ApiEnvelope<{
